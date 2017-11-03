@@ -1,6 +1,10 @@
 create or replace package body oos_util_string
 as
 
+  -- used internally by the strtok functions
+  g_strtok_buffer varchar2(32767);
+
+
   /**
    * Converts parameter to varchar2
    *
@@ -572,6 +576,55 @@ as
 
     return p_num || l_ordinal;
   end ordinal;
+
+function strtok (p_str in varchar2, p_delim in varchar2) return varchar2 is
+begin
+  if p_delim is null then
+    raise value_error;
+  end if;
+  if p_str is null then
+    return null;
+  end if;
+  g_strtok_buffer := ltrim(p_str, p_delim);
+  return strtok(p_delim => p_delim);
+end strtok;
+
+function strtok (p_delim in varchar2) return varchar2 is
+  l_return varchar2(32767);
+  l_pos integer;
+  l_fpos integer;
+begin
+  if p_delim is null then
+    raise value_error;
+  end if;
+  if g_strtok_buffer is null then
+    return null;
+  end if;
+  -- find the first position of any delimiter character
+  for i in 1..length(p_delim) loop
+    l_pos := instr(g_strtok_buffer, substr(p_delim,i,1));
+    if l_pos > 0 then
+      if l_fpos is null then
+        l_fpos := l_pos;
+      else
+        l_fpos := least(l_fpos, l_pos);
+      end if;
+    end if;
+  end loop;
+  if l_fpos is null then
+    l_return := g_strtok_buffer;
+    g_strtok_buffer := null;
+  else
+    l_return := substr(g_strtok_buffer, 1, l_fpos-1);
+    g_strtok_buffer := ltrim(substr(g_strtok_buffer, l_fpos+1), p_delim);
+  end if;
+  return l_return;
+end strtok;
+
+procedure strtok_reset_ is
+begin
+  g_strtok_buffer := null;
+end strtok_reset_;
 
 end oos_util_string;
 /
